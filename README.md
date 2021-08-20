@@ -1,3 +1,6 @@
+```
+make cpu
+```
 # solution
 ## System Requirements
 ### **** x64 support  ****
