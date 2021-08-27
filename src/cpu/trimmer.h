@@ -1,5 +1,4 @@
 
-
 #ifndef XBITS
 // 7 seems to give best performance
 #define XBITS 7
@@ -67,13 +66,15 @@ const u32 ZMASK     = NZ - 1;
 const u32 YZBITS    = EDGEBITS - XBITS;
 const u32 NYZ       = 1 << YZBITS;
 const u32 YZMASK    = NYZ - 1;
-const u32 YZ1BITS   = YZBITS < 15 ? YZBITS : 15;  // compressed YZ bits
+								 // compressed YZ bits
+const u32 YZ1BITS   = YZBITS < 15 ? YZBITS : 15;
 const u32 NYZ1      = 1 << YZ1BITS;
 const u32 YZ1MASK   = NYZ1 - 1;
 const u32 Z1BITS    = YZ1BITS - YBITS;
 const u32 NZ1       = 1 << Z1BITS;
 const u32 Z1MASK    = NZ1 - 1;
-const u32 YZ2BITS   = YZBITS < 11 ? YZBITS : 11;  // more compressed YZ bits
+								 // more compressed YZ bits
+const u32 YZ2BITS   = YZBITS < 11 ? YZBITS : 11;
 const u32 NYZ2      = 1 << YZ2BITS;
 const u32 YZ2MASK   = NYZ2 - 1;
 const u32 Z2BITS    = YZ2BITS - YBITS;
