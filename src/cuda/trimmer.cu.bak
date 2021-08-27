@@ -5,17 +5,17 @@
 namespace cuckoogpu
 {
 
-#define TROMP_SEEDA
-#define TROMP_SEEDB
-#define TROMP_ROUND
-#define TROMP_TAIL
+	#define TROMP_SEEDA
+	#define TROMP_SEEDB
+	#define TROMP_ROUND
+	#define TROMP_TAIL
 
-//#define TIMER
+	//#define TIMER
 
-#define DUCK_A_EDGES (EDGES_A)
-#define DUCK_A_EDGES_NX (DUCK_A_EDGES * NX)
-#define DUCK_B_EDGES (EDGES_B)
-#define DUCK_B_EDGES_NX (DUCK_B_EDGES * NX)
+	#define DUCK_A_EDGES (EDGES_A)
+	#define DUCK_A_EDGES_NX (DUCK_A_EDGES * NX)
+	#define DUCK_B_EDGES (EDGES_B)
+	#define DUCK_B_EDGES_NX (DUCK_B_EDGES * NX)
 
 	__device__ ulonglong4 Pack4edges (const uint2 e1, const uint2 e2, const uint2 e3, const uint2 e4)
 	{
@@ -23,9 +23,9 @@ namespace cuckoogpu
 		u64 r2 = (((u64) e2.y << 32) | ((u64) e2.x));
 		u64 r3 = (((u64) e3.y << 32) | ((u64) e3.x));
 		u64 r4 = (((u64) e4.y << 32) | ((u64) e4.x));
-		  return make_ulonglong4 (r1, r2, r3, r4);
+		return make_ulonglong4 (r1, r2, r3, r4);
 	}
-// ===== Above =======
+	// ===== Above =======
 
 	__device__ __forceinline__ void Increase2bCounter (u32 * ecounters, const int bucket)
 	{
@@ -95,7 +95,8 @@ namespace cuckoogpu
 			diphash_state shs(sipkeys);
 			edge_t edge0 = nonce0 & ~EDGE_BLOCK_MASK;
 			u32 i;
-			for(i = 0; i < EDGE_BLOCK_SIZE; i++){
+			for(i = 0; i < EDGE_BLOCK_SIZE; i++)
+			{
 				shs.hash24(edge0 + i);
 			}
 			const u64 last = shs.xor_lanes();
@@ -105,7 +106,8 @@ namespace cuckoogpu
 			{
 				u64 edge;
 				if(i == EDGE_BLOCK_MASK) edge = last;
-				else{
+				else
+				{
 					shs2.hash24(edge0 + i);
 					edge = shs2.xor_lanes() ^ last;
 				}
@@ -156,7 +158,6 @@ namespace cuckoogpu
 		}
 	}
 
-
 	template < int maxOut > __global__ void Cuckaroo_SeedA (const siphash_keys & sipkeys, ulonglong4* __restrict__ buffer, int *__restrict__ indexes)
 	{
 		const int group = blockIdx.x;
@@ -166,24 +167,27 @@ namespace cuckoogpu
 		const int nthreads = gridDim.x * dim;
 		const int FLUSHA2 = 2 * FLUSHA;
 
-		__shared__ uint2 tmp[NX][FLUSHA2];	// needs to be ulonglong4 aligned
+								 // needs to be ulonglong4 aligned
+		__shared__ uint2 tmp[NX][FLUSHA2];
 		const int TMPPERLL4 = sizeof (ulonglong4) / sizeof (uint2);
 		__shared__ int counters[NX];
 
-#pragma unroll
+		#pragma unroll
 		for (int row = lid; row < NX; row += dim)
 			counters[row] = 0;
 		__syncthreads ();
 
 		const int col = group & (NX - 1);
-		const int loops = NEDGES / nthreads;	// assuming THREADS_HAVE_EDGES checked
+								 // assuming THREADS_HAVE_EDGES checked
+		const int loops = NEDGES / nthreads;
 		for (int blk = 0; blk < loops; blk += EDGE_BLOCK_SIZE)
 		{
 			u32 nonce0 = gid * loops + blk;
 			diphash_state shs(sipkeys);
 			edge_t edge0 = nonce0 & ~EDGE_BLOCK_MASK;
 			u32 i;
-			for(i = 0; i < EDGE_BLOCK_SIZE; i++){
+			for(i = 0; i < EDGE_BLOCK_SIZE; i++)
+			{
 				shs.hash24(edge0 + i);
 			}
 			const u64 last = shs.xor_lanes();
@@ -194,17 +198,19 @@ namespace cuckoogpu
 			{
 				u64 edge;
 				if(e == EDGE_BLOCK_MASK) edge = last;
-				else {
+				else
+				{
 					shs2.hash24(edge0 + e);
 					edge = shs2.xor_lanes() ^ last;
 				}
 				u32 node0 = edge & EDGEMASK;
 				u32 node1 = (edge >> 32) & EDGEMASK;
 				int row = node0 >> YZBITS;
-				int counter = min ((int) atomicAdd (counters + row, 1), (int) (FLUSHA2 - 1));	// assuming ROWS_LIMIT_LOSSES checked
+								 // assuming ROWS_LIMIT_LOSSES checked
+				int counter = min ((int) atomicAdd (counters + row, 1), (int) (FLUSHA2 - 1));
 				tmp[row][counter] = make_uint2 (node0, node1);
 				__syncthreads ();
-				
+
 				if (counter == FLUSHA - 1)
 				{
 					int localIdx = min (FLUSHA2, counters[row]);
@@ -212,8 +218,9 @@ namespace cuckoogpu
 					int nflush = localIdx - newCount;
 					u32 grp = row * NX + col;
 					int cnt = min ((int) atomicAdd (indexes + grp, nflush), (int) (maxOut - nflush));
-#pragma unroll
-					for(int i = 0; i < FLUSHA; i += TMPPERLL4){
+					#pragma unroll
+					for(int i = 0; i < FLUSHA; i += TMPPERLL4)
+					{
 						buffer[((u64) grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *) (&tmp[row][i]);
 					}
 					for (int i = FLUSHA; i < nflush; i += TMPPERLL4)
@@ -226,7 +233,7 @@ namespace cuckoogpu
 					}
 					counters[row] = newCount;
 				}
-			
+
 				/*
 				if(lid < NX){
 					int grp = lid * NX + col;
@@ -254,7 +261,7 @@ namespace cuckoogpu
 				int cnt = min ((int) atomicAdd (indexes + grp, tmpl), (int) (maxOut - tmpl));
 				for (int i = 0; i < localIdx; i += TMPPERLL4)
 				{
-//      int cnt = min((int)atomicAdd(indexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
+					//      int cnt = min((int)atomicAdd(indexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
 					buffer[((u64) grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *) (&tmp[row][i]);
 				}
 			}
@@ -269,7 +276,8 @@ namespace cuckoogpu
 		const int nthreads = gridDim.x * dim;
 		const int FLUSHA2 = 2 * FLUSHA;
 
-		__shared__ EdgeOut tmp[NX][FLUSHA2];	// needs to be ulonglong4 aligned
+								 // needs to be ulonglong4 aligned
+		__shared__ EdgeOut tmp[NX][FLUSHA2];
 		const int TMPPERLL4 = sizeof (ulonglong4) / sizeof (EdgeOut);
 		__shared__ int counters[NX];
 
@@ -319,7 +327,7 @@ namespace cuckoogpu
 				int cnt = min ((int) atomicAdd (indexes + grp, localIdx), (int) (maxOut - localIdx));
 				for (int i = 0; i < localIdx; i += TMPPERLL4)
 				{
-//            int cnt = min((int)atomicAdd(indexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
+					//            int cnt = min((int)atomicAdd(indexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
 					buffer[((u64) grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *) (&tmp[row][i]);
 				}
 			}
@@ -372,8 +380,9 @@ namespace cuckoogpu
 				int nflush = localIdx - newCount;
 				u32 grp = row * NX + col;
 				int cnt = min ((int) atomicAdd (destinationIndexes + grp, nflush), (int) (maxOut - nflush));
-#pragma unroll
-				for(int i = 0; i < FLUSHB; i+= TMPPERLL4){
+				#pragma unroll
+				for(int i = 0; i < FLUSHB; i+= TMPPERLL4)
+				{
 					destination[((u64) grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *) (&tmp[col][i]);
 				}
 				for (int i = FLUSHB; i < nflush; i += TMPPERLL4)
@@ -400,7 +409,7 @@ namespace cuckoogpu
 				int cnt = min ((int) atomicAdd (destinationIndexes + grp, tmpl), (int) (maxOut - tmpl));
 				for (int i = 0; i < localIdx; i += TMPPERLL4)
 				{
-//            int cnt = min((int)atomicAdd(destinationIndexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
+					//            int cnt = min((int)atomicAdd(destinationIndexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
 					destination[((u64) grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *) (&tmp[col][i]);
 				}
 			}
@@ -413,7 +422,8 @@ namespace cuckoogpu
 		const int group = blockIdx.x;
 		const int dim = blockDim.x;
 		const int lid = threadIdx.x;
-		const static int COUNTERWORDS = NZ / 16;	// 16 2-bit counters per 32-bit word
+								 // 16 2-bit counters per 32-bit word
+		const static int COUNTERWORDS = NZ / 16;
 
 		__shared__ u32 ecounters[COUNTERWORDS];
 
@@ -472,12 +482,14 @@ namespace cuckoogpu
 		// if (group==0&&lid==0) printf("round %d cnt(0,0) %d\n", round, sourceIndexes[0]);
 	}
 
-	__device__ __forceinline__ uint2 multi(uint2 edge, int flag){
+	__device__ __forceinline__ uint2 multi(uint2 edge, int flag)
+	{
 		edge.x *= flag;
 		edge.y *= flag;
 		return edge;
 	}
-	__device__ __forceinline__ u32 multi(u32 edge, int flag){
+	__device__ __forceinline__ u32 multi(u32 edge, int flag)
+	{
 		return edge*flag;
 	}
 
@@ -487,7 +499,8 @@ namespace cuckoogpu
 		const int group = blockIdx.x;
 		const int dim = blockDim.x;
 		const int lid = threadIdx.x;
-		const static int COUNTERWORDS = NZ / 16;	// 16 2-bit counters per 32-bit word
+								 // 16 2-bit counters per 32-bit word
+		const static int COUNTERWORDS = NZ / 16;
 
 		__shared__ u32 ecounters[COUNTERWORDS];
 
@@ -506,12 +519,13 @@ namespace cuckoogpu
 				if (lindex < edgesInBucket)
 				{
 					const int index = maxIn * group + lindex;
-//					EdgeIn edge = __ldg (&src[index]);
+					//					EdgeIn edge = __ldg (&src[index]);
 					ulonglong4 edge4 = *(ulonglong4*)(&src[index]);
 					EdgeIn* edge2 = (EdgeIn*)&edge4;
-#pragma unroll
-					for(int j = 0; j < 4; j++){
-				//	if (!null (edge))
+					#pragma unroll
+					for(int j = 0; j < 4; j++)
+					{
+						//	if (!null (edge))
 						{
 							int flag = (lindex + j) / edgesInBucket;
 							flag = flag ^ 1;
@@ -537,14 +551,15 @@ namespace cuckoogpu
 				if (lindex < edgesInBucket)
 				{
 					const int index = maxIn * group + lindex;
-//					EdgeIn edge = __ldg (&src[index]);
+					//					EdgeIn edge = __ldg (&src[index]);
 					ulonglong4 edge4 = *(ulonglong4*)(&src[index]);
 					EdgeIn* edge2 = (EdgeIn*)&edge4;
 
-#pragma unroll
-					for(int j = 0; j < 4; j++){
-				//	if (null (edge))
-				//		continue;
+					#pragma unroll
+					for(int j = 0; j < 4; j++)
+					{
+						//	if (null (edge))
+						//		continue;
 						int flag = (lindex + j) / edgesInBucket;
 						flag = flag ^ 1;
 						edge2[j] = multi(edge2[j], flag);
@@ -616,7 +631,7 @@ namespace cuckoogpu
 		{
 			checkCudaErrors (cudaMalloc ((void **) &indexesE[i], indexesSize));
 		}
-//        checkCudaErrors(cudaMalloc((void**)&indexesE2, indexesSize));
+		//        checkCudaErrors(cudaMalloc((void**)&indexesE2, indexesSize));
 
 		sizeA = ROW_EDGES_A * NX * (selected == 0 && tp.expand > 0 ? sizeof (u32) : sizeof (uint2));
 		sizeB = ROW_EDGES_B * NX * (selected == 0 && tp.expand > 1 ? sizeof (u32) : sizeof (uint2));
@@ -626,8 +641,8 @@ namespace cuckoogpu
 		checkCudaErrors (cudaMalloc ((void **) &bufferA, bufferSize));
 		bufferB = bufferA + (bufferSize - sizeB);
 		bufferAB = bufferA + sizeB / NB;
-//      bufferB  = bufferA + sizeA / sizeof(ulonglong4);
-//        bufferAB = bufferA + sizeB / sizeof(ulonglong4);
+		//      bufferB  = bufferA + sizeA / sizeof(ulonglong4);
+		//        bufferAB = bufferA + sizeB / sizeof(ulonglong4);
 	}
 	u64 edgetrimmer::globalbytes () const
 	{
@@ -669,21 +684,21 @@ namespace cuckoogpu
 	{
 		cudaSetDevice (device);
 
-#ifdef TIMER
+		#ifdef TIMER
 		cudaEvent_t start, stop;
 		checkCudaErrors (cudaEventCreate (&start));
 		checkCudaErrors (cudaEventCreate (&stop));
-#endif
+		#endif
 
 		cudaMemset (indexesE[1], 0, indexesSize);
 		cudaMemcpy (dipkeys, &sipkeys, sizeof (sipkeys), cudaMemcpyHostToDevice);
 
 		checkCudaErrors (cudaDeviceSynchronize ());
 
-#ifdef TIMER
+		#ifdef TIMER
 		float durationA, durationB;
 		cudaEventRecord (start, NULL);
-#endif
+		#endif
 
 		if (selected == 0)
 		{
@@ -697,13 +712,13 @@ namespace cuckoogpu
 
 		checkCudaErrors (cudaDeviceSynchronize ());
 
-#ifdef TIMER
+		#ifdef TIMER
 		cudaEventRecord (stop, NULL);
 		cudaEventSynchronize (stop);
 		cudaEventElapsedTime (&durationA, start, stop);
 
 		cudaEventRecord (start, NULL);
-#endif
+		#endif
 
 		cudaMemset (indexesE[0], 0, indexesSize);
 		size_t qA = sizeA / NA;
@@ -722,19 +737,19 @@ namespace cuckoogpu
 			}
 		}
 
-#ifdef INDEX_DEBUG
+		#ifdef INDEX_DEBUG
 		cudaMemcpy (hostA, indexesE[0], NX * NY * sizeof (u32), cudaMemcpyDeviceToHost);
 		fprintf (stderr, "Index Number: %zu\n", hostA[0]);
-#endif
+		#endif
 
-#ifdef TIMER
+		#ifdef TIMER
 		cudaEventRecord (stop, NULL);
 		cudaEventSynchronize (stop);
 		cudaEventElapsedTime (&durationB, start, stop);
 		fprintf (stderr, "Seeding completed in %.2f + %.2f ms\n", durationA, durationB);
 
 		cudaEventRecord (start, NULL);
-#endif
+		#endif
 
 		for (u32 i = 0; i < NB; i++)
 			cudaMemset (indexesE[1 + i], 0, indexesSize);
@@ -745,29 +760,36 @@ namespace cuckoogpu
 		for (u32 i = NB; i--;)
 		{
 			if (selected != 0 || tp.expand == 0)
-				Round < 1, EDGES_A, uint2, EDGES_B / NB, uint2 ><<< tp.trim.blocks / NB, tp.trim.tpb >>> (0, *dipkeys, (const uint2 *) (bufferA + i * qA), (uint2 *) (bufferB + i * qB), indexesE[0] + i * qE, indexesE[1 + i]);	// to .632
+								 // to .632
+				Round < 1, EDGES_A, uint2, EDGES_B / NB, uint2 ><<< tp.trim.blocks / NB, tp.trim.tpb >>> (0, *dipkeys, (const uint2 *) (bufferA + i * qA), (uint2 *) (bufferB + i * qB), indexesE[0] + i * qE, indexesE[1 + i]);
 			else if (tp.expand == 1)
-				Round < 1, EDGES_A, u32, EDGES_B / NB, uint2 ><<< tp.trim.blocks / NB, tp.trim.tpb >>> (0, *dipkeys, (const u32 *) (bufferA + i * qA), (uint2 *) (bufferB + i * qB), indexesE[0] + i * qE, indexesE[1 + i]);	// to .632
+								 // to .632
+				Round < 1, EDGES_A, u32, EDGES_B / NB, uint2 ><<< tp.trim.blocks / NB, tp.trim.tpb >>> (0, *dipkeys, (const u32 *) (bufferA + i * qA), (uint2 *) (bufferB + i * qB), indexesE[0] + i * qE, indexesE[1 + i]);
 			else
-				Round < 1, EDGES_A, u32, EDGES_B / NB, u32 ><<< tp.trim.blocks / NB, tp.trim.tpb >>> (0, *dipkeys, (const u32 *) (bufferA + i * qA), (u32 *) (bufferB + i * qB), indexesE[0] + i * qE, indexesE[1 + i]);	// to .632
+								 // to .632
+				Round < 1, EDGES_A, u32, EDGES_B / NB, u32 ><<< tp.trim.blocks / NB, tp.trim.tpb >>> (0, *dipkeys, (const u32 *) (bufferA + i * qA), (u32 *) (bufferB + i * qB), indexesE[0] + i * qE, indexesE[1 + i]);
 		}
 
 		cudaMemset (indexesE[0], 0, indexesSize);
 
 		if (selected != 0 || tp.expand < 2)
-			Round < NB, EDGES_B / NB, uint2, EDGES_B / 2, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (1, *dipkeys, (const uint2 *) bufferB, (uint2 *) bufferA, indexesE[1], indexesE[0]);	// to .296
+								 // to .296
+			Round < NB, EDGES_B / NB, uint2, EDGES_B / 2, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (1, *dipkeys, (const uint2 *) bufferB, (uint2 *) bufferA, indexesE[1], indexesE[0]);
 		else
-			Round < NB, EDGES_B / NB, u32, EDGES_B / 2, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (1, *dipkeys, (const u32 *) bufferB, (uint2 *) bufferA, indexesE[1], indexesE[0]);	// to .296
+								 // to .296
+			Round < NB, EDGES_B / NB, u32, EDGES_B / 2, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (1, *dipkeys, (const u32 *) bufferB, (uint2 *) bufferA, indexesE[1], indexesE[0]);
 
 		cudaMemset (indexesE[1], 0, indexesSize);
-		Round < 1, EDGES_B / 2, uint2, EDGES_A / 4, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (2, *dipkeys, (const uint2 *) bufferA, (uint2 *) bufferB, indexesE[0], indexesE[1]);	// to .176
+								 // to .176
+		Round < 1, EDGES_B / 2, uint2, EDGES_A / 4, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (2, *dipkeys, (const uint2 *) bufferA, (uint2 *) bufferB, indexesE[0], indexesE[1]);
 		cudaMemset (indexesE[0], 0, indexesSize);
-		Round < 1, EDGES_A / 4, uint2, EDGES_B / 4, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (3, *dipkeys, (const uint2 *) bufferB, (uint2 *) bufferA, indexesE[1], indexesE[0]);	// to .117 
+								 // to .117
+		Round < 1, EDGES_A / 4, uint2, EDGES_B / 4, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (3, *dipkeys, (const uint2 *) bufferB, (uint2 *) bufferA, indexesE[1], indexesE[0]);
 
-#ifdef INDEX_DEBUG
+		#ifdef INDEX_DEBUG
 		cudaMemcpy (nedges, indexesE[0], sizeof (u32), cudaMemcpyDeviceToHost);
 		fprintf (stderr, "Index Number: %zu\n", nedges);
-#endif
+		#endif
 
 		cudaDeviceSynchronize ();
 
@@ -778,22 +800,22 @@ namespace cuckoogpu
 			cudaMemset (indexesE[0], 0, indexesSize);
 			Round2 < 1, EDGES_B / 4, uint2, EDGES_B / 4, uint2 ><<< tp.trim.blocks, tp.trim.tpb >>> (round + 1, *dipkeys, (const uint2 *) bufferB, (uint2 *) bufferA, indexesE[1], indexesE[0]);
 
-#ifdef INDEX_DEBUG
+			#ifdef INDEX_DEBUG
 			cudaMemcpy (&nedges, indexesE[0], sizeof (u32), cudaMemcpyDeviceToHost);
 			fprintf (stderr, "Index Number: %zu\n", nedges);
-#endif
+			#endif
 		}
 
 		checkCudaErrors (cudaDeviceSynchronize ());
 
-#ifdef TIMER
+		#ifdef TIMER
 		cudaEventRecord (stop, NULL);
 		cudaEventSynchronize (stop);
 		cudaEventElapsedTime (&durationA, start, stop);
 		fprintf (stderr, "Round completed in %.2f ms\n", durationA);
 
 		cudaEventRecord (start, NULL);
-#endif
+		#endif
 
 		cudaMemset (indexesE[1], 0, indexesSize);
 		checkCudaErrors (cudaDeviceSynchronize ());
@@ -801,7 +823,7 @@ namespace cuckoogpu
 		Tail < DUCK_B_EDGES / 4 ><<< tp.tail.blocks, tp.tail.tpb >>> ((const uint2 *) bufferA, (uint2 *) bufferB, indexesE[0], indexesE[1]);
 		cudaMemcpy (&nedges, indexesE[1], sizeof (u32), cudaMemcpyDeviceToHost);
 
-#ifdef TIMER
+		#ifdef TIMER
 		cudaEventRecord (stop, NULL);
 		checkCudaErrors (cudaEventSynchronize (stop));
 		cudaEventElapsedTime (&durationA, start, stop);
@@ -809,16 +831,16 @@ namespace cuckoogpu
 
 		checkCudaErrors (cudaEventDestroy (start));
 		checkCudaErrors (cudaEventDestroy (stop));
-#endif
+		#endif
 
 		checkCudaErrors (cudaDeviceSynchronize ());
-//      fprintf(stderr, "nedges: %zu\n", nedges);
-/*
-   uint2 *tmpa = (uint2*)malloc(sizeof(uint2) * nedges);
-	cudaMemcpy(tmpa, bufferB, sizeof(uint2)*nedges, cudaMemcpyDeviceToHost);
-	saveFile(tmpa, nedges, "result.txt");
-	free(tmpa);
-	*/
+		//      fprintf(stderr, "nedges: %zu\n", nedges);
+		/*
+		   uint2 *tmpa = (uint2*)malloc(sizeof(uint2) * nedges);
+			cudaMemcpy(tmpa, bufferB, sizeof(uint2)*nedges, cudaMemcpyDeviceToHost);
+			saveFile(tmpa, nedges, "result.txt");
+			free(tmpa);
+			*/
 		return nedges;
 	}
 
