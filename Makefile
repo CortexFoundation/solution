@@ -18,12 +18,12 @@ NVCC ?= nvcc $(CUDA_FLAGS)
 PROOFSIZE=42
 EDGEBITS=30
 
+cpu : libcpuminer.a
+
 all: cuda cpu
 
 cuda : libcudaminer.a
 
-cpu : libcpuminer.a
-	
 blake2b.o: src/blake2.h src/blake2-impl.h src/blake2b-ref.cpp
 	$(GPP) -c -o blake2b.o src/blake2b-ref.cpp
 
